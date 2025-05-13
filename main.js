@@ -244,6 +244,58 @@ class DonationApp {
         return numbers;
     }
 
+    generateTicketImage(name, phone, numbers) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Configurar el tamaño del canvas
+        canvas.width = 800;
+        canvas.height = 400;
+        
+        // Establecer fondo
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Dibujar borde
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 10;
+        ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+        
+        // Configurar texto
+        ctx.fillStyle = '#2c3e50';
+        ctx.textAlign = 'center';
+        
+        // Título
+        ctx.font = 'bold 40px Inter';
+        ctx.fillText('Bono Donación Kiwo', canvas.width / 2, 80);
+        
+        // Información del participante
+        ctx.font = '24px Inter';
+        ctx.fillText(`Nombre: ${name}`, canvas.width / 2, 150);
+        ctx.fillText(`Teléfono: ${phone}`, canvas.width / 2, 190);
+        
+        // Números asignados
+        ctx.font = 'bold 36px Inter';
+        ctx.fillStyle = '#27ae60';
+        ctx.fillText('Números asignados:', canvas.width / 2, 250);
+        ctx.font = 'bold 48px Inter';
+        ctx.fillText(numbers.join(' - '), canvas.width / 2, 310);
+        
+        // Fecha del sorteo
+        ctx.font = '20px Inter';
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillText('Sorteo: 15 de agosto - Lotería de la Cruz Roja', canvas.width / 2, 370);
+        
+        return canvas.toDataURL('image/png');
+    }
+
+    downloadTicket(dataUrl, name) {
+        const link = document.createElement('a');
+        link.download = `bono-donacion-${name.toLowerCase().replace(/\s+/g, '-')}.png`;
+        link.href = dataUrl;
+        link.click();
+    }
+
     async saveParticipant(name, phone, email, numbers) {
         try {
             const timestamp = Date.now();
@@ -293,6 +345,11 @@ class DonationApp {
                     const assignedNumbers = document.getElementById('assignedNumbers');
                     assignedNumbers.innerHTML = numbers.map(n => `<span>${n}</span>`).join('');
                     successModal.classList.add('active');
+                    
+                    // Generar y descargar la imagen del ticket
+                    const ticketImage = this.generateTicketImage(name, phone, numbers);
+                    this.downloadTicket(ticketImage, name);
+                    
                     registrationForm.reset();
                 } else {
                     alert('Error al procesar la donación. Por favor intente nuevamente.');
