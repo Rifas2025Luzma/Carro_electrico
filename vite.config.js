@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/control_rifa_carro/',
+  base: '/Carro_electrico/',
   build: {
     outDir: 'docs',
     assetsDir: 'assets',
