@@ -74,14 +74,15 @@ class DonationApp {
     }
 
     calculateTotals() {
+        const groupedParticipants = this.groupParticipantsByPerson();
         let totalPaid = 0;
         let totalPending = 0;
 
-        Object.values(this.participants).forEach(participant => {
+        Object.values(groupedParticipants).forEach(participant => {
             if (participant.paymentStatus === 'nequi' || participant.paymentStatus === 'other') {
-                totalPaid += this.DONATION_AMOUNT / 2; // Dividido por 2 porque cada bono tiene 2 números
+                totalPaid += this.DONATION_AMOUNT;
             } else {
-                totalPending += this.DONATION_AMOUNT / 2;
+                totalPending += this.DONATION_AMOUNT;
             }
         });
 
@@ -154,7 +155,7 @@ class DonationApp {
                         .sort((a, b) => Math.min(...a.numbers) - Math.min(...b.numbers))
                         .map(data => `
                             <tr>
-                                <td>${data.numbers.join(', ')}</td>
+                                <td>${data.numbers.sort().join(', ')}</td>
                                 <td>${data.name}</td>
                                 <td>${data.phone}</td>
                                 <td>
