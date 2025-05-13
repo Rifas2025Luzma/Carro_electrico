@@ -78,8 +78,8 @@ class DonationApp {
         let totalPaid = 0;
         let totalPending = 0;
 
-        Object.values(groupedParticipants).forEach(participant => {
-            if (participant.paymentStatus === 'nequi' || participant.paymentStatus === 'other') {
+        Object.values(groupedParticipants).forEach(group => {
+            if (group.paymentStatus === 'nequi' || group.paymentStatus === 'other') {
                 totalPaid += this.DONATION_AMOUNT;
             } else {
                 totalPending += this.DONATION_AMOUNT;
@@ -105,50 +105,55 @@ class DonationApp {
     }
 
     groupParticipantsByPerson() {
-        const grouped = {};
+        const groups = {};
         const processed = new Set();
-        
-        Object.entries(this.participants).forEach(([number, data]) => {
-            if (processed.has(number)) return;
-            
-            const key = `${data.name}-${data.phone}-${data.email}`;
-            const timestamp = data.timestamp;
-            
-            // Buscar el otro número del mismo bono
-            const otherNumber = Object.entries(this.participants).find(([n, d]) => 
-                n !== number && 
-                !processed.has(n) && 
-                d.name === data.name && 
-                d.phone === data.phone && 
-                d.email === data.email &&
-                Math.abs(d.timestamp - timestamp) < 1000 // Mismo momento de compra
-            );
 
-            if (otherNumber) {
-                grouped[key] = {
+        // Ordenar entradas por timestamp
+        const entries = Object.entries(this.participants)
+            .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+        for (let i = 0; i < entries.length; i++) {
+            const [number, data] = entries[i];
+            
+            if (processed.has(number)) continue;
+
+            const key = `${data.name}-${data.phone}-${data.email}-${data.timestamp}`;
+            
+            // Buscar el par correspondiente
+            const nextEntry = entries[i + 1];
+            if (nextEntry && 
+                !processed.has(nextEntry[0]) && 
+                nextEntry[1].name === data.name && 
+                nextEntry[1].phone === data.phone && 
+                nextEntry[1].email === data.email && 
+                nextEntry[1].timestamp === data.timestamp) {
+                
+                groups[key] = {
                     name: data.name,
                     phone: data.phone,
                     email: data.email,
-                    numbers: [number, otherNumber[0]],
+                    numbers: [number, nextEntry[0]],
                     paymentStatus: data.paymentStatus,
-                    timestamp: timestamp
+                    timestamp: data.timestamp
                 };
+                
                 processed.add(number);
-                processed.add(otherNumber[0]);
+                processed.add(nextEntry[0]);
+                i++; // Saltar el siguiente número ya que lo hemos procesado
             } else {
-                grouped[key] = {
+                groups[key] = {
                     name: data.name,
                     phone: data.phone,
                     email: data.email,
                     numbers: [number],
                     paymentStatus: data.paymentStatus,
-                    timestamp: timestamp
+                    timestamp: data.timestamp
                 };
                 processed.add(number);
             }
-        });
-        
-        return grouped;
+        }
+
+        return groups;
     }
 
     renderParticipantsList() {
