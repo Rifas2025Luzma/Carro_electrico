@@ -284,7 +284,7 @@ class DonationApp {
         // Fecha del sorteo
         ctx.font = '20px Inter';
         ctx.fillStyle = '#2c3e50';
-        ctx.fillText('Sorteo: Martes 20 de agosto - Lotería de la Cruz Roja', canvas.width / 2, 370);
+        ctx.fillText('Sorteo: Sábado 24 de agosto - Lotería de Boyacá', canvas.width / 2, 370);
         
         return canvas.toDataURL('image/png');
     }
