@@ -43,19 +43,20 @@ class DonationApp {
     }
 
     setupFirebaseListener() {
-        const donationsRef = database.ref('donations');
-        donationsRef.on('value', (snapshot) => {
+        database.ref('donations').on('value', (snapshot) => {
             this.participants = snapshot.val() || {};
             this.renderProgress();
             this.renderParticipantsList();
         });
     }
 
-    async updatePaymentStatus(number, status) {
+    async updatePaymentStatus(numbers, status) {
         try {
-            await database.ref(`donations/${number}`).update({
-                paymentStatus: status
+            const updates = {};
+            numbers.forEach(number => {
+                updates[`donations/${number}/paymentStatus`] = status;
             });
+            await database.ref().update(updates);
             return true;
         } catch (error) {
             console.error("Error actualizando estado de pago:", error);
@@ -64,7 +65,7 @@ class DonationApp {
     }
 
     calculateProgress() {
-        const totalNumbers = 3000; // Mantener 3000 para la barra de progreso
+        const totalNumbers = 3000;
         const soldNumbers = Object.keys(this.participants).length;
         const percentage = (soldNumbers / totalNumbers) * 100;
         return {
@@ -78,9 +79,9 @@ class DonationApp {
 
         Object.values(this.participants).forEach(participant => {
             if (participant.paymentStatus === 'nequi' || participant.paymentStatus === 'other') {
-                totalPaid += this.DONATION_AMOUNT;
+                totalPaid += this.DONATION_AMOUNT / 2; // Dividido por 2 porque cada bono tiene 2 números
             } else {
-                totalPending += this.DONATION_AMOUNT;
+                totalPending += this.DONATION_AMOUNT / 2;
             }
         });
 
@@ -102,11 +103,32 @@ class DonationApp {
         `;
     }
 
+    groupParticipantsByPerson() {
+        const grouped = {};
+        
+        Object.entries(this.participants).forEach(([number, data]) => {
+            const key = `${data.name}-${data.phone}-${data.email}`;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    name: data.name,
+                    phone: data.phone,
+                    email: data.email,
+                    numbers: [],
+                    paymentStatus: data.paymentStatus
+                };
+            }
+            grouped[key].numbers.push(number);
+        });
+        
+        return grouped;
+    }
+
     renderParticipantsList() {
         const participantsList = document.getElementById('participantsList');
         if (!participantsList) return;
 
         const { totalPaid, totalPending } = this.calculateTotals();
+        const groupedParticipants = this.groupParticipantsByPerson();
 
         participantsList.innerHTML = `
             <h2>Números Registrados</h2>
@@ -119,7 +141,7 @@ class DonationApp {
             <table class="participants-table">
                 <thead>
                     <tr>
-                        <th>Número</th>
+                        <th>Números</th>
                         <th>Nombre</th>
                         <th>Teléfono</th>
                         <th>Nequi</th>
@@ -128,36 +150,36 @@ class DonationApp {
                     </tr>
                 </thead>
                 <tbody>
-                    ${Object.entries(this.participants)
-                        .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                        .map(([number, data]) => `
+                    ${Object.values(groupedParticipants)
+                        .sort((a, b) => Math.min(...a.numbers) - Math.min(...b.numbers))
+                        .map(data => `
                             <tr>
-                                <td>${number}</td>
+                                <td>${data.numbers.join(', ')}</td>
                                 <td>${data.name}</td>
                                 <td>${data.phone}</td>
                                 <td>
                                     <input type="radio" 
-                                           name="payment_${number}" 
+                                           name="payment_${data.numbers[0]}" 
                                            value="nequi" 
                                            ${data.paymentStatus === 'nequi' ? 'checked' : ''}
                                            class="payment-radio"
-                                           data-number="${number}">
+                                           data-numbers='${JSON.stringify(data.numbers)}'>
                                 </td>
                                 <td>
                                     <input type="radio" 
-                                           name="payment_${number}" 
+                                           name="payment_${data.numbers[0]}" 
                                            value="other" 
                                            ${data.paymentStatus === 'other' ? 'checked' : ''}
                                            class="payment-radio"
-                                           data-number="${number}">
+                                           data-numbers='${JSON.stringify(data.numbers)}'>
                                 </td>
                                 <td>
                                     <input type="radio" 
-                                           name="payment_${number}" 
+                                           name="payment_${data.numbers[0]}" 
                                            value="pending" 
                                            ${!data.paymentStatus || data.paymentStatus === 'pending' ? 'checked' : ''}
                                            class="payment-radio"
-                                           data-number="${number}">
+                                           data-numbers='${JSON.stringify(data.numbers)}'>
                                 </td>
                             </tr>
                         `).join('')}
@@ -167,9 +189,9 @@ class DonationApp {
 
         document.querySelectorAll('.payment-radio').forEach(radio => {
             radio.addEventListener('change', async (e) => {
-                const number = e.target.dataset.number;
+                const numbers = JSON.parse(e.target.dataset.numbers);
                 const status = e.target.value;
-                await this.updatePaymentStatus(number, status);
+                await this.updatePaymentStatus(numbers, status);
             });
         });
     }
