@@ -108,7 +108,6 @@ class DonationApp {
         const groups = {};
         const processed = new Set();
 
-        // Ordenar entradas por timestamp
         const entries = Object.entries(this.participants)
             .sort((a, b) => a[1].timestamp - b[1].timestamp);
 
@@ -119,7 +118,6 @@ class DonationApp {
 
             const key = `${data.name}-${data.phone}-${data.email}-${data.timestamp}`;
             
-            // Buscar el par correspondiente
             const nextEntry = entries[i + 1];
             if (nextEntry && 
                 !processed.has(nextEntry[0]) && 
@@ -139,7 +137,7 @@ class DonationApp {
                 
                 processed.add(number);
                 processed.add(nextEntry[0]);
-                i++; // Saltar el siguiente número ya que lo hemos procesado
+                i++;
             } else {
                 groups[key] = {
                     name: data.name,
@@ -160,15 +158,9 @@ class DonationApp {
         const participantsList = document.getElementById('participantsList');
         if (!participantsList) return;
 
-        const { totalPaid, totalPending } = this.calculateTotals();
-        const groupedParticipants = this.groupParticipantsByPerson();
-
         participantsList.innerHTML = `
             <h2>Números Registrados</h2>
             <div class="sales-summary">
-                <p>Total Vendido: <span class="amount">$${(totalPaid + totalPending).toLocaleString()}</span></p>
-                <p>Total Pagos: <span class="amount">$${totalPaid.toLocaleString()}</span></p>
-                <p>Pendiente por Pagar: <span class="amount pending">$${totalPending.toLocaleString()}</span></p>
                 <p>Números Vendidos: <span class="amount">${Object.keys(this.participants).length}</span></p>
             </div>
             <table class="participants-table">
@@ -176,57 +168,27 @@ class DonationApp {
                     <tr>
                         <th>Números</th>
                         <th>Nombre</th>
-                        <th>Teléfono</th>
-                        <th>Nequi</th>
-                        <th>Otro</th>
-                        <th>Pendiente</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${Object.values(groupedParticipants)
+                    ${Object.values(this.groupParticipantsByPerson())
                         .sort((a, b) => a.timestamp - b.timestamp)
-                        .map(data => `
-                            <tr>
-                                <td>${data.numbers.sort().join(', ')}</td>
-                                <td>${data.name}</td>
-                                <td>${data.phone}</td>
-                                <td>
-                                    <input type="radio" 
-                                           name="payment_${data.numbers[0]}" 
-                                           value="nequi" 
-                                           ${data.paymentStatus === 'nequi' ? 'checked' : ''}
-                                           class="payment-radio"
-                                           data-numbers='${JSON.stringify(data.numbers)}'>
-                                </td>
-                                <td>
-                                    <input type="radio" 
-                                           name="payment_${data.numbers[0]}" 
-                                           value="other" 
-                                           ${data.paymentStatus === 'other' ? 'checked' : ''}
-                                           class="payment-radio"
-                                           data-numbers='${JSON.stringify(data.numbers)}'>
-                                </td>
-                                <td>
-                                    <input type="radio" 
-                                           name="payment_${data.numbers[0]}" 
-                                           value="pending" 
-                                           ${!data.paymentStatus || data.paymentStatus === 'pending' ? 'checked' : ''}
-                                           class="payment-radio"
-                                           data-numbers='${JSON.stringify(data.numbers)}'>
-                                </td>
-                            </tr>
-                        `).join('')}
+                        .map(data => {
+                            const nameParts = data.name.split(' ');
+                            const firstName = nameParts[0];
+                            const secondNameInitial = nameParts[1] ? ` ${nameParts[1][0]}.` : '';
+                            const displayName = firstName + secondNameInitial;
+                            
+                            return `
+                                <tr>
+                                    <td>${data.numbers.sort().join(', ')}</td>
+                                    <td>${displayName}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                 </tbody>
             </table>
         `;
-
-        document.querySelectorAll('.payment-radio').forEach(radio => {
-            radio.addEventListener('change', async (e) => {
-                const numbers = JSON.parse(e.target.dataset.numbers);
-                const status = e.target.value;
-                await this.updatePaymentStatus(numbers, status);
-            });
-        });
     }
 
     generateUniqueNumbers() {
@@ -248,40 +210,32 @@ class DonationApp {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Configurar el tamaño del canvas
         canvas.width = 800;
         canvas.height = 400;
         
-        // Establecer fondo
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Dibujar borde
         ctx.strokeStyle = '#2ecc71';
         ctx.lineWidth = 10;
         ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
         
-        // Configurar texto
         ctx.fillStyle = '#2c3e50';
         ctx.textAlign = 'center';
         
-        // Título
         ctx.font = 'bold 40px Inter';
         ctx.fillText('Bono Donación Kiwo', canvas.width / 2, 80);
         
-        // Información del participante
         ctx.font = '24px Inter';
         ctx.fillText(`Nombre: ${name}`, canvas.width / 2, 150);
         ctx.fillText(`Teléfono: ${phone}`, canvas.width / 2, 190);
         
-        // Números asignados
         ctx.font = 'bold 36px Inter';
         ctx.fillStyle = '#27ae60';
         ctx.fillText('Números asignados:', canvas.width / 2, 250);
         ctx.font = 'bold 48px Inter';
         ctx.fillText(numbers.join(' - '), canvas.width / 2, 310);
         
-        // Fecha del sorteo
         ctx.font = '20px Inter';
         ctx.fillStyle = '#2c3e50';
         ctx.fillText('Sorteo: Sábado 24 de agosto - Lotería de Boyacá', canvas.width / 2, 370);
@@ -319,16 +273,16 @@ class DonationApp {
     }
 
     setupEventListeners() {
-        const buyButton = document.getElementById('buyButton');
+        const buyButtons = document.querySelectorAll('#buyButton, .buyButton');
         const registrationModal = document.getElementById('registrationModal');
         const successModal = document.getElementById('successModal');
         const registrationForm = document.getElementById('registrationForm');
 
-        if (buyButton) {
-            buyButton.addEventListener('click', () => {
+        buyButtons.forEach(button => {
+            button.addEventListener('click', () => {
                 registrationModal.classList.add('active');
             });
-        }
+        });
 
         if (registrationForm) {
             registrationForm.addEventListener('submit', async (e) => {
@@ -346,7 +300,6 @@ class DonationApp {
                     assignedNumbers.innerHTML = numbers.map(n => `<span>${n}</span>`).join('');
                     successModal.classList.add('active');
                     
-                    // Generar y descargar la imagen del ticket
                     const ticketImage = this.generateTicketImage(name, phone, numbers);
                     this.downloadTicket(ticketImage, name);
                     
