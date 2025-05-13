@@ -106,19 +106,46 @@ class DonationApp {
 
     groupParticipantsByPerson() {
         const grouped = {};
+        const processed = new Set();
         
         Object.entries(this.participants).forEach(([number, data]) => {
+            if (processed.has(number)) return;
+            
             const key = `${data.name}-${data.phone}-${data.email}`;
-            if (!grouped[key]) {
+            const timestamp = data.timestamp;
+            
+            // Buscar el otro número del mismo bono
+            const otherNumber = Object.entries(this.participants).find(([n, d]) => 
+                n !== number && 
+                !processed.has(n) && 
+                d.name === data.name && 
+                d.phone === data.phone && 
+                d.email === data.email &&
+                Math.abs(d.timestamp - timestamp) < 1000 // Mismo momento de compra
+            );
+
+            if (otherNumber) {
                 grouped[key] = {
                     name: data.name,
                     phone: data.phone,
                     email: data.email,
-                    numbers: [],
-                    paymentStatus: data.paymentStatus
+                    numbers: [number, otherNumber[0]],
+                    paymentStatus: data.paymentStatus,
+                    timestamp: timestamp
                 };
+                processed.add(number);
+                processed.add(otherNumber[0]);
+            } else {
+                grouped[key] = {
+                    name: data.name,
+                    phone: data.phone,
+                    email: data.email,
+                    numbers: [number],
+                    paymentStatus: data.paymentStatus,
+                    timestamp: timestamp
+                };
+                processed.add(number);
             }
-            grouped[key].numbers.push(number);
         });
         
         return grouped;
@@ -152,7 +179,7 @@ class DonationApp {
                 </thead>
                 <tbody>
                     ${Object.values(groupedParticipants)
-                        .sort((a, b) => Math.min(...a.numbers) - Math.min(...b.numbers))
+                        .sort((a, b) => a.timestamp - b.timestamp)
                         .map(data => `
                             <tr>
                                 <td>${data.numbers.sort().join(', ')}</td>
@@ -214,13 +241,14 @@ class DonationApp {
 
     async saveParticipant(name, phone, email, numbers) {
         try {
+            const timestamp = Date.now();
             const updates = {};
             numbers.forEach(number => {
                 updates[`donations/${number}`] = {
                     name,
                     phone,
                     email,
-                    timestamp: Date.now(),
+                    timestamp,
                     paymentStatus: 'pending'
                 };
             });
